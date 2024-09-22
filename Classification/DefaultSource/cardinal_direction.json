@@ -1,0 +1,13 @@
+{
+  "categoryName": "CardinalDirection",
+  "items": [
+    { "name": "north" },
+    { "name": "east" },
+    { "name": "west" },
+    { "name": "south" },
+    { "name": "northeast" },
+    { "name": "northwest" },
+    { "name": "southeast" },
+    { "name": "southwest" }
+  ]
+}

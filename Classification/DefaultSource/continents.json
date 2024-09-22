@@ -1,0 +1,22 @@
+{
+  "categoryName": "Continent",
+  "items": [
+    { "name": "africa" },
+    { "name": "asia" },
+    { "name": "europe" },
+    { "name": "north america" },
+    { "name": "south america" },
+    { "name": "antarctica" },
+    { "name": "australia" },
+
+    { "name": "Vaalbara" },
+    { "name": "Kenorland" },
+    { "name": "Arctica" },
+    { "name": "Atlantica" },
+    { "name": "Nuna" },
+    { "name": "Rodinia" },
+    { "name": "Pannotia" },
+    { "name": "Gondwana" },
+    { "name": "Pangaea" }
+  ]
+}

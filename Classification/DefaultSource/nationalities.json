@@ -1,0 +1,17 @@
+{
+  "categoryName": "Nationality",
+  "items": [
+    { "name": "American" },
+    { "name": "Spanish" },
+    { "name": "Italian" },
+    { "name": "German" },
+    { "name": "Dutch" },
+    { "name": "Swedish" },
+    { "name": "Chinese" },
+    { "name": "Japanese" },
+    { "name": "Korean" },
+    { "name": "Australian" },
+    { "name": "Mexican" },
+    { "name": "European" }
+  ]
+}

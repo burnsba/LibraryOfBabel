@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="DefaultSource\animals.json" />
+    <None Remove="DefaultSource\birds.json" />
+    <None Remove="DefaultSource\cardinal_direction.json" />
+    <None Remove="DefaultSource\continents.json" />
+    <None Remove="DefaultSource\countries.json" />
+    <None Remove="DefaultSource\days_of_the_week.json" />
+    <None Remove="DefaultSource\elements.json" />
+    <None Remove="DefaultSource\feelings.json" />
+    <None Remove="DefaultSource\food.json" />
+    <None Remove="DefaultSource\fruit.json" />
+    <None Remove="DefaultSource\nationalities.json" />
+    <None Remove="DefaultSource\vegetable.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="DefaultSource\feelings.json" />
+    <EmbeddedResource Include="DefaultSource\fruit.json" />
+    <EmbeddedResource Include="DefaultSource\vegetable.json" />
+    <EmbeddedResource Include="DefaultSource\food.json" />
+    <EmbeddedResource Include="DefaultSource\elements.json" />
+    <EmbeddedResource Include="DefaultSource\cardinal_direction.json" />
+    <EmbeddedResource Include="DefaultSource\nationalities.json" />
+    <EmbeddedResource Include="DefaultSource\animals.json" />
+    <EmbeddedResource Include="DefaultSource\countries.json" />
+    <EmbeddedResource Include="DefaultSource\continents.json" />
+    <EmbeddedResource Include="DefaultSource\birds.json" />
+    <EmbeddedResource Include="DefaultSource\days_of_the_week.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Catalyst" Version="1.0.51118" />
+    <PackageReference Include="Catalyst.Models.English" Version="1.0.30952" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UnitsNet\UnitsNet\UnitsNet.csproj" />
+  </ItemGroup>
+
+</Project>

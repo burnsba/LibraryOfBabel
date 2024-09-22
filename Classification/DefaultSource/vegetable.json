@@ -1,0 +1,43 @@
+{
+  "categoryName": "Vegetable",
+  "parent": "Food",
+  "items": [
+    { "name": "artichoke" },
+    { "name": "asparagus" },
+    { "name": "beet" },
+    { "name": "bell pepper" },
+    { "name": "broccoli" },
+    { "name": "brussels sprouts" },
+    { "name": "cabbage" },
+    { "name": "carolina" },
+    { "name": "carrot" },
+    { "name": "celery" },
+    { "name": "chili" },
+    { "name": "cilantro" },
+    { "name": "corn" },
+    { "name": "cucumber" },
+    { "name": "eggplant" },
+    { "name": "ginger" },
+    {
+      "name": "jalapeño",
+      "alt": [ "jalapeno" ]
+    },
+    { "name": "kernel" },
+    { "name": "mushrooms" },
+    { "name": "okra" },
+    { "name": "olive" },
+    { "name": "onion" },
+    { "name": "parsnip" },
+    { "name": "pea" },
+    { "name": "pepper" },
+    { "name": "potato" },
+    { "name": "pumpkin" },
+    { "name": "radish" },
+    { "name": "reaper" },
+    { "name": "rhubarb" },
+    { "name": "squash" },
+    { "name": "tomato" },
+    { "name": "turnip" },
+    { "name": "zucchini" }
+  ]
+}

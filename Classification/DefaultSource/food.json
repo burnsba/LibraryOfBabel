@@ -1,0 +1,23 @@
+{
+  "categoryName": "Food",
+  "items": [
+    { "name": "bacon" },
+    { "name": "bbq" },
+    { "name": "bread" },
+    { "name": "brownie" },
+    { "name": "cake" },
+    { "name": "eggs" },
+    { "name": "french fries" },
+    { "name": "hamburger" },
+    { "name": "hash browns" },
+    { "name": "hotdog" },
+    { "name": "ice cream" },
+    { "name": "milkshake" },
+    { "name": "pasta" },
+    { "name": "pizza" },
+    { "name": "roll" },
+    { "name": "sandwhich" },
+    { "name": "steak" },
+    { "name": "sushi" }
+  ]
+}

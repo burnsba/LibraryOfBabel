@@ -1,0 +1,34 @@
+{
+  "categoryName": "DaysOfTheWeek",
+  "items": [
+    {
+      "name": "sunday",
+      "alt": [ ],
+      "abv": [ "sun" ]
+    },
+    {
+      "name": "monday",
+      "abv": [ "mon" ]
+    },
+    {
+      "name": "tuesday",
+      "abv": [ "tue" ]
+    },
+    {
+      "name": "wednesday",
+      "abv": [ "wed" ]
+    },
+    {
+      "name": "thursday",
+      "abv": [ "thur" ]
+    },
+    {
+      "name": "friday",
+      "abv": [ "fri" ]
+    },
+    {
+      "name": "saturday",
+      "abv": [ "sat" ]
+    }
+  ]
+}
