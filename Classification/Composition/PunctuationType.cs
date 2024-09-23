@@ -18,6 +18,8 @@ namespace Classification.Composition
         Semicolon,
         Emdash,
 
+        Footnote,
+
         Other,
     }
 }

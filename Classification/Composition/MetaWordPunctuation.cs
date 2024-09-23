@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Classification.Lang;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -9,8 +10,6 @@ namespace Classification.Composition
 {
     public class MetaWordPunctuation : MetaTermBase
     {
-        private const string _emDash = "—";
-
         private string? _otherPunct;
 
         public PunctuationType PunctuationType { get; set; } = PunctuationType.DefaultUnknown;
@@ -25,7 +24,7 @@ namespace Classification.Composition
         {
             TermType = TermType.TPunctuation;
 
-            if (value == "--" || value == _emDash)
+            if (value == Symbol.EmDash2 || value == Symbol.EmDash1)
             {
                 PunctuationType = PunctuationType.Emdash;
             }
@@ -53,6 +52,10 @@ namespace Classification.Composition
             {
                 PunctuationType = PunctuationType.Semicolon;
             }
+            else if (value == Symbol.Footnote)
+            {
+                PunctuationType = PunctuationType.Footnote;
+            }
             else
             {
                 PunctuationType = PunctuationType.Other;
@@ -70,9 +73,10 @@ namespace Classification.Composition
                     case PunctuationType.Comma: return ",";
                     case PunctuationType.Colon: return ":";
                     case PunctuationType.Semicolon: return ";";
-                    case PunctuationType.Emdash: return "--";
+                    case PunctuationType.Emdash: return Symbol.EmDash2;
                     case PunctuationType.Question: return "?";
                     case PunctuationType.Exclaim: return "!";
+                    case PunctuationType.Footnote: return Symbol.Footnote;
 
                     case PunctuationType.Other: return _otherPunct!;
                 }
@@ -97,6 +101,7 @@ namespace Classification.Composition
                     case PunctuationType.Period:
                     case PunctuationType.Exclaim:
                     case PunctuationType.Question:
+                    case PunctuationType.Footnote:
                         return false;
                 }
 
@@ -122,6 +127,7 @@ namespace Classification.Composition
                     case PunctuationType.Semicolon:
                     case PunctuationType.Exclaim:
                     case PunctuationType.Question:
+                    case PunctuationType.Footnote:
                         return true;
                 }
 
@@ -136,12 +142,18 @@ namespace Classification.Composition
         {
             switch (PunctuationType)
             {
+                // soft stop
                 case PunctuationType.Comma:
                 case PunctuationType.Colon:
                 case PunctuationType.Semicolon:
                 case PunctuationType.Emdash:
                     return false;
+
+                // no stop
+                case PunctuationType.Footnote:
+                    return false;
                 
+                // full stop
                 case PunctuationType.Period:
                 case PunctuationType.Exclaim:
                 case PunctuationType.Question:
@@ -155,12 +167,18 @@ namespace Classification.Composition
         {
             switch (PunctuationType)
             {
+                // soft stop
                 case PunctuationType.Comma:
                 case PunctuationType.Colon:
                 case PunctuationType.Semicolon:
                 case PunctuationType.Emdash:
                     return true;
-                
+
+                // no stop
+                case PunctuationType.Footnote:
+                    return false;
+
+                // full stop
                 case PunctuationType.Period:
                 case PunctuationType.Exclaim:
                 case PunctuationType.Question:

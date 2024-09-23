@@ -1,12 +1,14 @@
 ﻿using Catalyst;
 using Classification.Analyze;
 using Classification.Extensions;
+using Classification.Lang;
 using Classification.Rng;
 using Microsoft.ML.Transforms;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
+using System.Runtime.InteropServices.Marshalling;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -43,16 +45,58 @@ namespace Classification.Composition
         private const int _parenLenLower = 1;
         private const int _parenLenUpper = 30;
 
+        private const int MaxFootnotesPerParagraph = 1;
+
+        private static readonly List<string> _articleWords = new List<string>()
+        {
+            "a", "an", "the"
+        };
+
+        private static readonly List<string> _conjunctionWords = new List<string>()
+        {
+            "and", "but", "or"
+        };
+
+        private static readonly List<string> _possessivePronoun = new List<string>()
+        {
+            "mine", "ours", "yours", "his", "hers", "theirs", "whose",
+        };
+
+        private static readonly List<string> _possessiveDeterminers = new List<string>()
+        {
+            "my", "our", "your", "his", "her", "its", "their", "whose",
+        };
+
+        private static readonly List<string> _prepositionWords = new List<string>()
+        {
+            "for",
+            "from",
+            "in",
+            "into",
+            "of",
+            "to",
+            "with",
+        };
+
+        private static readonly List<string> _unallowedVerbPrepVerbPrepositions = new List<string>()
+        {
+            "of",
+            "in",
+            // don't add "to", to allow phrases like "have to get to"
+        };
+
         private static readonly List<string> _continuationWords = new List<string>()
         {
             "a", "an", "the",
             "and",
             "as",
             "at",
+            "but",
             "by",
-            "in",
-            "its",
             "for",
+            "in",
+            "into",
+            "its",
             "my",
             "of",
             "or",
@@ -79,10 +123,12 @@ namespace Classification.Composition
             WordType.Verb,
         };
 
+        /*
         private static readonly Dictionary<string, List<string>> _bannedSequence = new Dictionary<string, List<string>>()
         {
             { "the", new List<string>() { "of" } },
         };
+        */
 
         private StandardRandom _rand;
 
@@ -93,6 +139,7 @@ namespace Classification.Composition
         internal Dictionary<MarkovChain<WordType>, Dictionary<WordType, int>> MarkovChainByPart { get; set; } = new Dictionary<MarkovChain<WordType>, Dictionary<WordType, int>>();
         internal Dictionary<MarkovChain<WordToken>, List<WordToken>> MarkovChainByToken { get; set; } = new Dictionary<MarkovChain<WordToken>, List<WordToken>>();
         internal Dictionary<WordType, HashSet<WordToken>> TokenList { get; set; } = new Dictionary<WordType, HashSet<WordToken>>();
+        internal Dictionary<WordType, Stat<int>> AverageSentencePartCount { get; set; } = new Dictionary<WordType, Stat<int>>();
 
         public TextBodyComposition()
         {
@@ -109,18 +156,11 @@ namespace Classification.Composition
             _rand = new StandardRandom(seed);
         }
 
-        public MetaPhrase GeneratePhrase(bool completeSentence, int maxSentenceWordCount)
+        public MetaPhrase GeneratePhrase(bool completeSentence, int maxSentenceWordCount, int maxFootnote)
         {
             var mpartKey = MarkovChainByPart.Keys.ToList()[(int)_rand.Next(MarkovChainByPart.Keys.Count)];
             MarkovChain<WordToken> mtokenKey = MarkovChainByToken.Keys.ToList()[(int)_rand.Next(MarkovChainByToken.Keys.Count)];
 
-            //var sb = new StringBuilder();
-            int nexactMatchCount = 0;
-
-            int matchType1 = 0;
-            int matchType2 = 0;
-            int matchType3 = 0;
-            int matchType4 = 0;
 
             int allowExactMatchChance = 2;
             bool inQuote = false;
@@ -142,7 +182,11 @@ namespace Classification.Composition
             bool timeToQuit = false;
             bool safeEnd = false;
             WordToken? previousToken = null;
+            WordToken? previousToken2 = null;
             string? previousWord = null;
+
+            int currentFootnoteCount = 0;
+            int recentPunctuation = 0;
 
             for (int i = 0; timeToQuit == false || safeEnd == false; i++)
             {
@@ -158,7 +202,7 @@ namespace Classification.Composition
                     timeToQuit = false;
                 }
 
-                int tryAgain = 10;
+                int tryAgain = 12;
 
                 for (; tryAgain > 0; tryAgain--)
                 {
@@ -188,9 +232,6 @@ namespace Classification.Composition
 
                             if (_tokenChainAllowedPart.Contains(nextToken.PartOfSpeech))
                             {
-                                nexactMatchCount++;
-                                matchType1++;
-
                                 foundNextToken = true;
                             }
                         }
@@ -219,9 +260,6 @@ namespace Classification.Composition
 
                                     if (_tokenChainAllowedPart.Contains(nextToken.PartOfSpeech))
                                     {
-                                        nexactMatchCount++;
-                                        matchType2++;
-
                                         foundNextToken = true;
 
                                         break;
@@ -255,9 +293,6 @@ namespace Classification.Composition
 
                                     if (_tokenChainAllowedPart.Contains(nextToken.PartOfSpeech))
                                     {
-                                        nexactMatchCount++;
-                                        matchType3++;
-
                                         foundNextToken = true;
 
                                         break;
@@ -270,7 +305,7 @@ namespace Classification.Composition
                     // Couldn't find above.
                     // Fallback to pick any random allowed token.
                     // Also if the "tryAgain" counter failed too many times above.
-                    if (tryAgain < 4 || foundNextToken == false)
+                    if (tryAgain < 6 || foundNextToken == false)
                     {
                         // attempt to find an allowed part of speech
                         for (int j = 0; j < 5; j++)
@@ -279,9 +314,6 @@ namespace Classification.Composition
 
                             if (_tokenChainAllowedPart.Contains(nextToken.PartOfSpeech))
                             {
-                                nexactMatchCount++;
-                                matchType4++;
-
                                 foundNextToken = true;
 
                                 break;
@@ -294,26 +326,84 @@ namespace Classification.Composition
                         throw new Exception("Could not find token to append");
                     }
 
+                    // make visual studio happy.
+                    // Even though this will throw if (foundNextToken == false) above.
+                    if (object.ReferenceEquals(null, nextToken))
+                    {
+                        throw new NullReferenceException();
+                    }
+
                     bool doTheTryAgain = false;
 
                     // dont allow the phrase to start with "'" or "'s".
-                    if (object.ReferenceEquals(null, previousToken) && nextToken!.PartOfSpeech == WordType.Particle && nextToken.Value.StartsWith("'"))
+                    if (object.ReferenceEquals(null, previousToken) && nextToken.PartOfSpeech == WordType.Particle && nextToken.Value.StartsWith("'"))
                     {
                         doTheTryAgain = true;
+                        goto next_doTheTryAgain;
                     }
                     else if (!object.ReferenceEquals(null, previousToken))
                     {
-                        if (_bannedSequence.ContainsKey(previousToken.Value))
-                        {
-                            var maybeBanned = _bannedSequence[previousToken.Value];
+                        // Do allow:
+                        // double determiner, like "her which"
 
-                            if (maybeBanned.Contains(nextToken!.Value))
+                        // Don't allow "continuation" word to follow article.
+                        if (_articleWords.Contains(previousToken.Value)
+                             && _continuationWords.Contains(nextToken.Value))
+                        {
+                            doTheTryAgain = true;
+                            goto next_doTheTryAgain;
+                        }
+
+                        // Don't allow pronoun to follow article.
+                        if (_articleWords.Contains(previousToken.Value)
+                            && nextToken.PartOfSpeech == WordType.Pronoun)
+                        {
+                            doTheTryAgain = true;
+                            goto next_doTheTryAgain;
+                        }
+
+                        // Don't allow double preposition
+                        if (_prepositionWords.Contains(previousToken.Value)
+                             && _prepositionWords.Contains(nextToken.Value))
+                        {
+                            doTheTryAgain = true;
+                            goto next_doTheTryAgain;
+                        }
+
+                        // Don't allow a conjunction to follow a preposition
+                        if (_prepositionWords.Contains(previousToken.Value)
+                            && _conjunctionWords.Contains(nextToken.Value))
+                        {
+                            doTheTryAgain = true;
+                            goto next_doTheTryAgain;
+                        }
+
+                        if (recentPunctuation == 0
+                            && !object.ReferenceEquals(null, previousToken2))
+                        {
+                            // don't allow "{article} {word} {article}"
+                            if (_articleWords.Contains(previousToken2.Value)
+                                && _articleWords.Contains(nextToken.Value))
                             {
                                 doTheTryAgain = true;
+                                goto next_doTheTryAgain;
+                            }
+
+                            // don't allow "{verb} {preposition} {verb}"
+                            // ... for only some prepositions
+                            // ... and verbs that aren't have/had/has/...
+                            if (recentPunctuation == 0
+                                && previousToken2.PartOfSpeech == WordType.Verb
+                                && _unallowedVerbPrepVerbPrepositions.Contains(previousToken.Value)
+                                && nextToken.PartOfSpeech == WordType.Verb)
+                            {
+                                doTheTryAgain = true;
+                                goto next_doTheTryAgain;
                             }
                         }
 
-                        if (nextToken!.PartOfSpeech == WordType.Particle && nextToken.Value.StartsWith("'"))
+                        // Dont add possesive to some parts of spech.
+                        if (nextToken.PartOfSpeech == WordType.Particle && nextToken.Value.StartsWith("'"))
                         {
                             if (previousToken.PartOfSpeech == WordType.Noun
                                 || previousToken.PartOfSpeech == WordType.ProperNoun
@@ -324,13 +414,46 @@ namespace Classification.Composition
                             else
                             {
                                 doTheTryAgain = true;
+                                goto next_doTheTryAgain;
                             }
+                        }
+
+                        // If the prior was a possesive, require a nounish word.
+                        if (previousToken.PartOfSpeech == WordType.Particle && previousToken.Value.StartsWith("'"))
+                        {
+                            if (nextToken.PartOfSpeech == WordType.Noun
+                                || nextToken.PartOfSpeech == WordType.ProperNoun
+                                || nextToken.PartOfSpeech == WordType.ProperNoun)
+                            {
+                                // allowed
+                            }
+                            else
+                            {
+                                doTheTryAgain = true;
+                                goto next_doTheTryAgain;
+                            }
+                        }
+
+                        // Don't allow double pronoun
+                        if (previousToken.PartOfSpeech == WordType.Pronoun
+                            && nextToken.PartOfSpeech == WordType.Pronoun)
+                        {
+                            doTheTryAgain = true;
+                            goto next_doTheTryAgain;
+                        }
+
+                        // Don't allow double pronun/possesive (e.g., "her her" as two different parts of speech)
+                        if ((_possessivePronoun.Contains(previousToken.Value) || _possessiveDeterminers.Contains(previousToken.Value))
+                            && (_possessivePronoun.Contains(nextToken.Value) || _possessiveDeterminers.Contains(nextToken.Value)))
+                        {
+                            doTheTryAgain = true;
+                            goto next_doTheTryAgain;
                         }
                     }
                     else if (previousWord == nextToken.Value)
                     {
                         // don't allow duplicates, except for adjectives or adverbs
-                        if (previousToken.PartOfSpeech == nextToken.PartOfSpeech
+                        if (previousToken!.PartOfSpeech == nextToken.PartOfSpeech
                             && (
                                 previousToken.PartOfSpeech == WordType.Adjective
                                 || previousToken.PartOfSpeech == WordType.Adverb))
@@ -340,8 +463,12 @@ namespace Classification.Composition
                         else
                         {
                             doTheTryAgain = true;
+                            goto next_doTheTryAgain;
                         }
                     }
+
+                next_doTheTryAgain:
+                    ;
 
                     if (!doTheTryAgain)
                     {
@@ -352,6 +479,13 @@ namespace Classification.Composition
                 if (tryAgain <= 0)
                 {
                     throw new Exception("Could not find token to append (repeat too many times)");
+                }
+
+                // make visual studio happy.
+                // Even though this will throw if (foundNextToken == false) above.
+                if (object.ReferenceEquals(null, nextToken))
+                {
+                    throw new NullReferenceException();
                 }
 
                 int commonPunctuationCount = 0;
@@ -377,18 +511,18 @@ namespace Classification.Composition
                     }
                 }
 
-                // make visual studio happy.
-                // Even though this will throw if (foundNextToken == false) above.
-                if (object.ReferenceEquals(null, nextToken))
+                if (nextToken.Value == "unconcealed")
                 {
-                    throw new NullReferenceException();
+                    int a = 9;
                 }
 
                 var addedTerm = new MetaWordValue(nextToken);
                 phrase.Words.Add(addedTerm);
                 sentenceLength++;
 
-                if (timeToQuit && !ExpectsFollowing(addedTerm))
+                bool expectsFollowing = ExpectsFollowing(addedTerm);
+
+                if (timeToQuit && !expectsFollowing)
                 {
                     safeEnd = true;
                 }
@@ -402,7 +536,7 @@ namespace Classification.Composition
                 bool fullStop = false;
                 bool chainStop = false;
 
-                if (!_continuationWords.Contains(nextToken.Value)
+                if (!expectsFollowing
                     && _rand.NextFloat() < puncPercent)
                 {
                     bool ignore = false;
@@ -410,12 +544,31 @@ namespace Classification.Composition
 
                     MetaTermBase? mtb = null;
 
-                    if (randomPunct.Value == "\"")
+                    if (randomPunct.Value == Symbol.Footnote)
+                    {
+                        if (currentFootnoteCount < maxFootnote)
+                        {
+                            currentFootnoteCount++;
+                            // allow
+                        }
+                        else
+                        {
+                            ignore = true;
+                        }
+                    }
+                    else if (randomPunct.Value == "\"")
                     {
                         if (inQuote)
                         {
-                            closeQuote = true;
-                            ignore = true;
+                            if (runningQuoteLength < 1)
+                            {
+                                ignore = true;
+                            }
+                            else
+                            {
+                                closeQuote = true;
+                                ignore = true;
+                            }
                         }
                         else if (inParen)
                         {
@@ -423,10 +576,18 @@ namespace Classification.Composition
                         }
                         else
                         {
-                            inQuote = true;
+                            if (timeToQuit && safeEnd)
+                            {
+                                // dont start a quote
+                                ignore = true;
+                            }
+                            else
+                            {
+                                inQuote = true;
 
-                            activeQuoteLength = (int)_rand.Next(_quoteLenLower, _quoteLenUpper);
-                            mtb = new MetaWordQuote(QuoteType.OpenQuote);
+                                activeQuoteLength = (int)_rand.Next(_quoteLenLower, _quoteLenUpper);
+                                mtb = new MetaWordQuote(QuoteType.OpenQuote);
+                            }
                         }
                     }
                     else if (randomPunct.Value == "(")
@@ -441,10 +602,18 @@ namespace Classification.Composition
                         }
                         else
                         {
-                            inParen = true;
+                            if (timeToQuit && safeEnd)
+                            {
+                                // dont start a paren
+                                ignore = true;
+                            }
+                            else
+                            {
+                                inParen = true;
 
-                            activeParenLength = (int)_rand.Next(_parenLenLower, _parenLenUpper);
-                            mtb = new MetaWordParen(ParenType.OpenParen);
+                                activeParenLength = (int)_rand.Next(_parenLenLower, _parenLenUpper);
+                                mtb = new MetaWordParen(ParenType.OpenParen);
+                            }
                         }
                     }
                     else if (randomPunct.Value == ")")
@@ -511,15 +680,16 @@ namespace Classification.Composition
                             }
 
                             phrase.Words.Add(mtb);
+                            recentPunctuation = 3;
                         }
                     }
                 }
 
                 if (inQuote)
                 {
-                    if (runningQuoteLength > activeQuoteLength
+                    if ((!expectsFollowing && runningQuoteLength > activeQuoteLength)
                         || fullStop
-                        || (timeToQuit & safeEnd))
+                        || (timeToQuit && safeEnd))
                     {
                         closeQuote = true;
                     }
@@ -527,9 +697,9 @@ namespace Classification.Composition
 
                 if (inParen)
                 {
-                    if (runningParenLength > activeParenLength
+                    if ((!expectsFollowing && runningParenLength > activeParenLength)
                         || fullStop
-                        || (timeToQuit & safeEnd))
+                        || (timeToQuit && safeEnd))
                     {
                         closeParen = true;
                     }
@@ -544,6 +714,7 @@ namespace Classification.Composition
                 {
                     phrase.TidyPunctuationForEndQuoteParen();
                     phrase.Words.Add(new MetaWordQuote(QuoteType.CloseQuote));
+                    recentPunctuation = 3;
                     inQuote = false;
                     runningQuoteLength = 0;
                     activeQuoteLength = 0;
@@ -553,6 +724,7 @@ namespace Classification.Composition
                 {
                     phrase.TidyPunctuationForEndQuoteParen();
                     phrase.Words.Add(new MetaWordParen(ParenType.CloseParen));
+                    recentPunctuation = 3;
                     inParen = false;
                     runningParenLength = 0;
                     activeParenLength = 0;
@@ -582,11 +754,17 @@ namespace Classification.Composition
                     runningParenLength++;
                 }
 
+                previousToken2 = previousToken;
                 previousToken = nextToken;
 
                 if (nextToken.TermType == TermType.TWord)
                 {
                     previousWord = nextToken.Value;
+                }
+
+                if (recentPunctuation > 0)
+                {
+                    recentPunctuation--;
                 }
             }
 
@@ -618,13 +796,31 @@ namespace Classification.Composition
             MetaParagraph paragraph = new MetaParagraph();
 
             int paragraphWordLength = 0;
+            int currentFootnoteCount = 0;
+            int remainingAllowedFootnotes = 0;
 
             while (true)
             {
-                var sentence = GeneratePhrase(true, maxSentenceWordCount);
+                remainingAllowedFootnotes = MaxFootnotesPerParagraph - currentFootnoteCount;
+
+                var sentence = GeneratePhrase(true, maxSentenceWordCount, remainingAllowedFootnotes);
+
+                var thisSentenceFootnoteCount = sentence.Words
+                    .Where(x => x is MetaWordPunctuation)
+                    .Cast<MetaWordPunctuation>()
+                    .Count(x => x.PunctuationType == PunctuationType.Footnote);
+
+                currentFootnoteCount += thisSentenceFootnoteCount;
+
                 paragraph.Sentences.Add(sentence);
 
                 paragraphWordLength += sentence.GetWordCount();
+
+                for (int i = 0; i < thisSentenceFootnoteCount; i++)
+                {
+                    var footnote = GeneratePhrase(true, maxSentenceWordCount, 0);
+                    paragraph.Footnotes.Add(footnote);
+                }
 
                 if (paragraphWordLength > averageParagraphWordsHalf && _rand.Next(ChanceEndParagraph) == 0)
                 {
@@ -696,7 +892,7 @@ namespace Classification.Composition
                 var paragraph = mtb.Paragraphs[i];
                 var p1 = ResolveValue(paragraph);
 
-                sb.Append("\n\n");
+                sb.Append(Symbol.ParagraphGenSeperator);
                 sb.Append(p1);
             }
 
@@ -724,6 +920,21 @@ namespace Classification.Composition
                 sb.Append(s1);
 
                 last = sentence.Words.Last();
+            }
+
+            if (mtb.Footnotes.Any())
+            {
+                for (int i = 0; i < mtb.Footnotes.Count; i++)
+                {
+                    var foot = mtb.Footnotes[i];
+                    var f1 = ResolveValue(foot);
+
+                    sb.Append(Symbol.ParagraphGenFootnoteSeperator);
+
+                    sb.Append(Symbol.Footnote);
+                    sb.Append(" ");
+                    sb.Append(f1);
+                }
             }
 
             return sb.ToString();
@@ -798,6 +1009,12 @@ namespace Classification.Composition
             if (mtb is MetaWordValue mwvalue)
             {
                 var lower = mwvalue.Value.ToLower();
+
+                // Require a word following a possessive.
+                if (mwvalue.PartOfSpeech == WordType.Particle && mwvalue.Value.StartsWith("'"))
+                {
+                    return true;
+                }
 
                 return _continuationWords.Contains(lower);
             }

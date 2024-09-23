@@ -10,6 +10,8 @@ namespace Classification.Composition
     {
         public List<MetaPhrase> Sentences { get; set; } = new List<MetaPhrase>();
 
+        public List<MetaPhrase> Footnotes { get; set; } = new List<MetaPhrase>();
+
         public int GetWordCount() => Sentences.Sum(x => x.GetWordCount());
     }
 }

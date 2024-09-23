@@ -18,7 +18,16 @@ namespace ConsoleApp1
             */
 
             string path = @"C:\Users\benja\code\LibraryOfBabel\exclude\source\chessmen_of_mars.txt";
+            string path2 = @"C:\Users\benja\code\LibraryOfBabel\exclude\source\warlord_of_mars.txt";
+            string path3 = @"C:\Users\benja\code\LibraryOfBabel\exclude\source\thuvia,_maid_of_mars.txt";
             var textContent = File.ReadAllText(path);
+            textContent += "\n\n\n";
+            textContent += File.ReadAllText(path2);
+            textContent += "\n\n\n";
+            textContent += File.ReadAllText(path3);
+
+            // chessmen of mars, replace asterisk with footnote.
+            textContent = textContent.Replace("*", "†");
 
             var ee = new Engine();
             await ee.Process(textContent);
